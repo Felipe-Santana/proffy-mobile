@@ -1,48 +1,104 @@
-import React from "react";
-import { View, Image, Text } from "react-native";
+import React, { useState } from "react";
+import { View, Image, Text, Linking } from "react-native";
 import styles from "./styles";
 import { RectButton } from "react-native-gesture-handler";
 
 import heartOutlineIcon from "../../assets/images/icons/heart-outline.png";
 import unFavoriteIcon from "../../assets/images/icons/unfavorite.png";
 import whatsappIcon from "../../assets/images/icons/whatsapp.png";
+import AsyncStorage from "@react-native-community/async-storage";
+import api from "../../services/api";
 
-function TeacherItem() {
+export interface Teacher {
+  id: number;
+  avatar: string;
+  bio: string;
+  cost: number;
+  name: string;
+  subject: string;
+  whatsapp: string;
+}
+
+interface TeacherItemProps {
+  teacher: Teacher;
+  favorite: boolean;
+}
+
+const TeacherItem: React.FC<TeacherItemProps> = ({ teacher, favorite }) => {
+  const [isFavorite, setFavorite] = useState(favorite);
+
+  async function handleLinkToWhatsapp() {
+    await api.post("connections", {
+      user_id: teacher.id,
+    });
+
+    Linking.openURL(`whatsapp://send?phone=${teacher.whatsapp}`);
+  }
+
+  async function handleToggleFavorite() {
+    const favorites = await AsyncStorage.getItem("favorites");
+
+    let favoritesArray = [];
+
+    if (favorites) {
+      favoritesArray = JSON.parse(favorites);
+    }
+
+    if (isFavorite) {
+      const favoriteIndex = favoritesArray.findIndex((teacherItem: Teacher) => {
+        return teacherItem.id === teacher.id;
+      });
+
+      favoritesArray.splice(favoriteIndex, 1);
+
+      setFavorite(false);
+    } else {
+      favoritesArray.push(teacher);
+
+      setFavorite(true);
+    }
+    await AsyncStorage.setItem("favorites", JSON.stringify(favoritesArray));
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.profile}>
         <Image
           style={styles.avatar}
           source={{
-            uri:
-              "https://m.media-amazon.com/images/M/MV5BMTQ5ODI0MDc4M15BMl5BanBnXkFtZTgwNTM5MDk3MTE@._V1_UX214_CR0,0,214,317_AL_.jpg",
+            uri: teacher.avatar,
           }}
         />
         <View style={styles.profileInfo}>
-          <Text style={styles.name}>Liam Hemsworth</Text>
-          <Text style={styles.subject}>Transfiguração</Text>
+          <Text style={styles.name}>{teacher.name}</Text>
+          <Text style={styles.subject}>{teacher.subject}</Text>
         </View>
       </View>
 
-      <Text style={styles.bio}>
-        Was an English half-blood wizard serving as Potions Master, Defence
-        Against the Dark Arts professor, and Headmaster of the Hogwarts School
-        of Witchcraft and Wizardry as well as a member of the Order of the
-        Phoenix and a Death Eater.
-      </Text>
+      <Text style={styles.bio}>{teacher.bio}</Text>
 
       <View style={styles.footer}>
         <Text style={styles.price}>
           Preço/Hora {"  "}
-          <Text style={styles.priceValue}>R$ 20,00</Text>
+          <Text style={styles.priceValue}>R$ {teacher.cost}</Text>
         </Text>
 
         <View style={styles.buttonsContainer}>
-          <RectButton style={[styles.favoriteButton, styles.favorite]}>
-            <Image source={unFavoriteIcon} />
+          <RectButton
+            onPress={handleToggleFavorite}
+            style={[styles.favoriteButton, isFavorite ? styles.favorite : {}]}
+          >
+            {isFavorite ? (
+              <Image source={unFavoriteIcon} />
+            ) : (
+              <Image source={heartOutlineIcon} />
+            )}
           </RectButton>
 
-          <RectButton style={styles.contactButton}>
+          <RectButton
+            onPress={handleLinkToWhatsapp}
+            style={styles.contactButton}
+          >
             <Image source={whatsappIcon} />
             <Text style={styles.contactButtonText}>Entrar em contato</Text>
           </RectButton>
@@ -50,6 +106,6 @@ function TeacherItem() {
       </View>
     </View>
   );
-}
+};
 
 export default TeacherItem;
